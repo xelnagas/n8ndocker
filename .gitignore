@@ -1,0 +1,22 @@
+# Environnements et secrets
+.env
+*.env
+*.env.*
+!.env.example
+
+# Système d'exploitation
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Rust
+target/
+**/*.rs.bk
+
+# Node & conteneurs
+node_modules/
+n8n_data/
