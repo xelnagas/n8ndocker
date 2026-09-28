@@ -112,8 +112,11 @@ Ce projet respecte intégralement la norme d'ingénierie logicielle [norme.md](f
 
 ### Lancer la suite de tests et les vérifications qualité
 ```bash
-# Exécution de tous les tests unitaires et d'intégration
+# Exécution de tous les tests unitaires et d'intégration (dont conformité Docker)
 cargo test
+
+# Validation bout-en-bout du build Docker et healthcheck
+./tests/test_docker_build.sh
 
 # Vérification du formatage de code
 cargo fmt --check

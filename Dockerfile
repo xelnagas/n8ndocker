@@ -7,15 +7,25 @@ FROM rust:1.90-bookworm AS builder
 
 WORKDIR /usr/src/bionic-agent-tools
 
-# Copie des manifestes, configuration cargo et sources vendored (offline)
+# Optimisation du cache Docker : copie des manifestes de dépendances
 COPY Cargo.toml Cargo.lock ./
-COPY .cargo/config.offline.toml ./.cargo/config.toml
-COPY vendor ./vendor
+
+# Pré-compilation des dépendances pour bénéficier du cache de layer Docker
+RUN mkdir -p src && \
+    echo "pub mod bionic; pub mod config; pub mod server; pub mod tools;" > src/lib.rs && \
+    mkdir -p src/bionic src/config src/server src/tools && \
+    touch src/bionic/mod.rs src/server/mod.rs src/tools/mod.rs && \
+    echo "pub struct AppConfig;" > src/config.rs && \
+    echo "fn main() {}" > src/main.rs && \
+    cargo build --release || true && \
+    rm -rf src
+
+# Copie des sources et tests réels
 COPY src ./src
 COPY tests ./tests
 
-# Compilation en mode Release 100% Offline
-RUN cargo build --release --offline
+# Compilation finale en mode Release
+RUN touch src/main.rs src/lib.rs && cargo build --release
 
 # --- Étape Finale Runtime Légère ---
 FROM debian:bookworm-slim AS runtime

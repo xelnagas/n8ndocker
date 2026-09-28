@@ -1,4 +1,7 @@
 target/
-.git
+vendor/
+.git/
 .DS_Store
 *.log
+n8n_data/
+.env*
