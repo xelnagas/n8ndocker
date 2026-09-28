@@ -111,14 +111,18 @@ Lorsqu'un composant dépend de services externes (APIs, base de données, infér
 
 L'application des tests dans des architectures combinant n8n, conteneurs Docker et modèles de langage (LLM comme `qwen3.8`) impose des pratiques adaptées :
 
-### 6.1 Tests des Composants n8n (Custom Nodes & Scripts)
+### 6.1 Environnement de Test & Conteneurisation (Docker Compose)
+* **Orchestration de l'instance de test** : Le conteneur n8n peut être démarré via **Docker Compose** (`docker compose up -d`) afin de fournir un environnement isolé et prêt à l'emploi pour les tests d'intégration, les validations de webhooks et les scénarios E2E.
+* **Reproductibilité Local & CI** : Docker Compose garantit la conformité des configurations (ports, volumes de persistance, passerelle `host.docker.internal` vers l'hôte) entre les postes de travail et les exécuteurs CI.
+
+### 6.2 Tests des Composants n8n (Custom Nodes & Scripts)
 * **Code Nodes (JavaScript / Python)** :
   * Isoler la logique métier dans des fonctions pures et testables avec Jest / Vitest / Pytest en dehors de l'interface n8n.
   * Tester les transformations de données (JSON in -> JSON out) avec des jeux de données d'exemples (*fixtures*).
 * **Validation de Schéma (Contract Testing)** :
   * Valider les payloads des webhooks entrants et sortants avec **Zod** ou **JSON Schema**.
 
-### 6.2 Tests des Interactions LLM & Agents
+### 6.3 Tests des Interactions LLM & Agents
 Par nature, les LLM sont non-déterministes et coûteux en temps de calcul :
 
 1. **En Tests Unitaires & CI** :

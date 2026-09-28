@@ -1,0 +1,212 @@
+{
+  "name": "Multi-Agent Bionic Qwen3.8 & Rust Tools Platform",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "e67a6d89-b1d1-4ad9-bf91-4cf1ea3e2f51",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        380,
+        280
+      ],
+      "webhookId": "bionic-agent-chat"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Tu es l'Agent Superviseur d'une plateforme multi-agents hautement performante.\nTu as accès aux modèles d'intelligence artificielle locaux Bionic (qwen3.8) et à une suite d'outils ultra-rapides développés en Rust.\n\nTes missions :\n1. Analyser la requête utilisateur avec précision.\n2. Si la requête nécessite un calcul mathématique ou logique, utilise immédiatement l'outil 'Rust_Calculator'.\n3. Si la requête demande une analyse textuelle, statistique ou de sentiment, utilise 'Rust_Text_Processor'.\n4. Si la requête concerne la documentation ou une recherche de connaissances, utilise 'Rust_RAG_Search'.\n5. Restitue une réponse claire, structurée et professionnelle en français."
+        }
+      },
+      "id": "c7684078-4ea5-4148-9366-23b207559e83",
+      "name": "AI Agent Superviseur",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        620,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3.8-27b",
+        "options": {
+          "temperature": 0.2,
+          "maxTokens": 2048
+        }
+      },
+      "id": "23d38734-77e8-4a65-8b33-e74f1ba1739c",
+      "name": "Bionic OpenAI Model (qwen3.8)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        540,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "bionic-host-credential",
+          "name": "Bionic Host LLM (host.docker.internal:1234)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId || 'default-session' }}"
+      },
+      "id": "11bbceef-4573-4554-b52a-9e12613efeb3",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        680,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "name": "Rust_Calculator",
+        "description": "Exécute un calcul mathématique ou logique précis via le microservice Rust natif. Entrée : expression (ex: 'sqrt(144) + 25 * 4').",
+        "method": "POST",
+        "url": "http://rust-tools:3000/api/v1/tools/calculator",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"expression\": \"{{ $fromAI('expression', 'Expression mathématique à évaluer') }}\"\n}"
+      },
+      "id": "a9010e47-eef4-4770-9fa2-58e146747df0",
+      "name": "Rust Calculator Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        840,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "name": "Rust_Text_Processor",
+        "description": "Analyse lexicale, détection de sentiment, statistiques et mots-clés via le microservice Rust. Entrée : text (le texte à analyser).",
+        "method": "POST",
+        "url": "http://rust-tools:3000/api/v1/tools/text",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $fromAI('text', 'Texte à analyser') }}\"\n}"
+      },
+      "id": "fa2f8c5b-ef2c-473d-82d8-21d743a6d211",
+      "name": "Rust Text Processor Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "name": "Rust_RAG_Search",
+        "description": "Recherche dans la base de connaissances documentaire interne via le moteur RAG Rust. Entrée : query (terme ou question de recherche).",
+        "method": "POST",
+        "url": "http://rust-tools:3000/api/v1/tools/rag",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"action\": \"search\",\n  \"query\": \"{{ $fromAI('query', 'Question ou sujet à chercher dans la documentation') }}\",\n  \"top_k\": 3\n}"
+      },
+      "id": "c6114a1e-a4c4-4dc4-b78b-304b77dbd394",
+      "name": "Rust RAG Search Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        500
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Superviseur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bionic OpenAI Model (qwen3.8)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Superviseur",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent Superviseur",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rust Calculator Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Superviseur",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rust Text Processor Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Superviseur",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rust RAG Search Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Superviseur",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "Bionic"
+    },
+    {
+      "name": "Rust"
+    },
+    {
+      "name": "Multi-Agents"
+    }
+  ]
+}

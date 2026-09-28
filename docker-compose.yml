@@ -1,0 +1,50 @@
+services:
+  rust-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bionic-agent-tools
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - RUST_TOOLS_HOST=0.0.0.0
+      - RUST_TOOLS_PORT=3000
+      - BIONIC_BASE_URL=${BIONIC_BASE_URL:-http://host.docker.internal:1234}
+      - BIONIC_API_KEY=${BIONIC_API_KEY:-dummy-token-local}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - agent-network
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n-agents
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=${N8N_PORT:-5678}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Paris}
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_AI_ENABLED=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - agent-network
+    depends_on:
+      - rust-tools
+
+networks:
+  agent-network:
+    name: agent-network
+    driver: bridge
+
+volumes:
+  n8n_data:
+    name: n8n_data

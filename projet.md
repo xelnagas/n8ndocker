@@ -63,25 +63,62 @@ graph TD
 | :--- | :--- | :--- |
 | **Bionic Engine** | Inférence LLM locale (`qwen3.8`) | Machine Host (ports habituels Bionic : ex. `7880`, `8000` ou endpoint OpenAI `/v1`) |
 | **Docker Engine** | Moteur de conteneurs | Machine Host |
-| **n8n Container** | Orchestrateur de workflows & agents | Conteneur Docker (`n8nio/n8n:latest`) exposé sur le port `5678` |
+| **n8n Container** | Orchestrateur de workflows & agents | Conteneur Docker (`n8nio/n8n:latest`) exposé sur le port `5678` (démarrage via `docker compose` ou Docker CLI) |
 | **Composants & Outils Rust** | Logique métier, serveurs de tools (tool-calling), connecteurs, microservices | Code source Rust (binaire natif / conteneur Docker dédié multi-stage) |
 | **Volume n8n_data** | Persistance des workflows, credentials, exécutions | Volume Docker local |
 | **Réseau Bridge / Extra Hosts** | Résolution de l'IP de l'hôte depuis le conteneur | `host.docker.internal:host-gateway` |
 
-### 4.2 Configuration Réseau & Docker (Aperçu)
+### 4.2 Déploiement & Configuration Réseau (Docker Compose)
+
+Le conteneur n8n peut être démarré et orchestré simplement via **Docker Compose** (`docker compose up -d`) ou via la commande Docker CLI classique. L'utilisation de Docker Compose est la méthode recommandée pour assurer la persistance des volumes, la configuration des variables d'environnement et la résolution réseau vers la machine hôte.
 
 > [!IMPORTANT]
 > Pour que le conteneur n8n puisse communiquer avec Bionic tournant sur l'hôte, la directive `extra_hosts` ou la variable `host.docker.internal` est indispensable.
 
-Exemple de paramétrage cible dans `docker-compose.yml` :
-* Image : `docker.n8n.io/n8nio/n8n:latest`
-* Ports : `5678:5678`
-* Extra Hosts : `host.docker.internal:host-gateway`
-* Variables d'environnement clés :
-  * `WEBHOOK_URL`
-  * `GENERIC_TIMEZONE`
-  * `N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true`
-  * `N8N_AI_ENABLED=true` (activé par défaut sur les versions récentes)
+#### Commandes d'exploitation Docker Compose
+* **Démarrage en arrière-plan** :
+  ```bash
+  docker compose up -d
+  ```
+* **Vérification de l'état du service** :
+  ```bash
+  docker compose ps
+  ```
+* **Consultation des logs en temps réel** :
+  ```bash
+  docker compose logs -f n8n
+  ```
+* **Arrêt du conteneur** :
+  ```bash
+  docker compose down
+  ```
+
+#### Configuration de référence (`docker-compose.yml`)
+```yaml
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n-agents
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=Europe/Paris
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_AI_ENABLED=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  n8n_data:
+    name: n8n_data
+```
 
 ### 4.3 Paramètres de Connexion au Modèle Bionic dans n8n
 Dans l'interface n8n, la connexion est configurée via le credential standard **OpenAI API** avec :
@@ -163,13 +200,13 @@ gantt
 
 ### Livrables Attendus
 * [x] **Fiche Projet** : [projet.md](file:///Users/julien.simand/n8n/projet.md)
-* [ ] **Codebase Rust** : Workspace Cargo (`Cargo.toml`, modules `src/`, suite de tests `tests/`) pour les microservices, connecteurs et outils d'agents (*Tool Calling*).
-* [ ] **Fichier d'orchestration Docker** : `docker-compose.yml` préconfiguré avec `extra_hosts`, persistance et service applicatif Rust.
-* [ ] **Fichier d'environnement** : `.env.example` détaillant les variables de ports et de tokens.
-* [ ] **Workflow Démo n8n (JSON)** : Workflow exporté comprenant un agent n8n connecté à Bionic `qwen3.8` et aux outils Rust.
-* [ ] **Guide d'exploitation** : Procédure de mise en route, vérification des logs et dépannage.
+* [x] **Codebase Rust** : Workspace Cargo ([Cargo.toml](file:///Users/julien.simand/n8n/Cargo.toml), modules [src/](file:///Users/julien.simand/n8n/src), suite de tests [tests/](file:///Users/julien.simand/n8n/tests)) pour les microservices, connecteurs et outils d'agents (*Tool Calling*). Conforme à 100% à [norme.md](file:///Users/julien.simand/n8n/norme.md) (TDD, AAA, FIRST, clippy).
+* [x] **Fichier d'orchestration Docker** : [docker-compose.yml](file:///Users/julien.simand/n8n/docker-compose.yml) orchestrant n8n et le microservice d'outils Rust avec réseau bridge dédié et `extra_hosts`.
+* [x] **Fichier d'environnement** : [.env.example](file:///Users/julien.simand/n8n/.env.example) et [.env](file:///Users/julien.simand/n8n/.env) détaillant les variables de ports, tokens et endpoints.
+* [x] **Workflow Démo n8n (JSON)** : [multi_agent_bionic_workflow.json](file:///Users/julien.simand/n8n/workflows/multi_agent_bionic_workflow.json) comprenant l'agent superviseur n8n connecté à Bionic `qwen3.8` (`qwen/qwen3.8-27b`) et aux outils Rust natifs.
+* [x] **Guide d'exploitation** : Procédure de mise en route, vérification des logs et dépannage dans le [README.md](file:///Users/julien.simand/n8n/README.md).
 
 ---
 
 > [!TIP]
-> **Prochaine étape recommandée** : Rédiger le fichier `docker-compose.yml` et initialiser le workspace Cargo (`Cargo.toml`) pour les composants Rust, puis tester immédiatement l'appel réseau vers l'API Bionic de votre machine hôte.
+> **Prochaine étape recommandée** : Démarrer le conteneur n8n via `docker compose up -d`, initialiser le workspace Cargo (`Cargo.toml`) pour les composants Rust, et tester la résolution réseau `host.docker.internal` vers l'API Bionic de votre machine hôte.
