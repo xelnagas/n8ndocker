@@ -63,14 +63,16 @@ graph TD
 | :--- | :--- | :--- |
 | **Bionic Engine** | Inférence LLM locale (`qwen3.8`) | Machine Host (ports habituels Bionic : ex. `7880`, `8000` ou endpoint OpenAI `/v1`) |
 | **Docker Engine** | Moteur de conteneurs | Machine Host |
-| **n8n Container** | Orchestrateur de workflows & agents | Conteneur Docker (`n8nio/n8n:latest`) exposé sur le port `5678` (démarrage via `docker compose` ou Docker CLI) |
-| **Composants & Outils Rust** | Logique métier, serveurs de tools (tool-calling), connecteurs, microservices | Code source Rust (binaire natif / conteneur Docker dédié multi-stage) |
-| **Volume n8n_data** | Persistance des workflows, credentials, exécutions | Volume Docker local |
+| **n8n Container** | Orchestrateur de workflows & agents | Conteneur Docker (`n8nio/n8n:latest`) exposé sur le port `5678` |
+| **Sandbox d'Exécution n8n** | Isolation sécurisée et exécution de code pour l'assistant et les agents IA | Conteneurs `sandbox-api` (port 5680/8080), `sandbox-certs` et `sandbox-runner-1` (DinD) |
+| **SearXNG (Recherche Web)** | Métamoteur open source de recherche web en temps réel sans tracking pour agents IA | Conteneur `searxng` exposé sur port `8088` (hôte) / `8080` (interne) |
+| **Composants & Outils Rust** | Logique métier, serveurs de tools (tool-calling), connecteurs, microservices | Microservice `bionic-agent-tools` exposé sur le port `3000` |
+| **Volume n8n_data & sandbox_tls** | Persistance des workflows n8n et certificats mTLS de la sandbox | Volumes Docker locaux |
 | **Réseau Bridge / Extra Hosts** | Résolution de l'IP de l'hôte depuis le conteneur | `host.docker.internal:host-gateway` |
 
 ### 4.2 Déploiement & Configuration Réseau (Docker Compose)
 
-Le conteneur n8n peut être démarré et orchestré simplement via **Docker Compose** (`docker compose up -d`) ou via la commande Docker CLI classique. L'utilisation de Docker Compose est la méthode recommandée pour assurer la persistance des volumes, la configuration des variables d'environnement et la résolution réseau vers la machine hôte.
+Le conteneur n8n, la sandbox d'exécution, SearXNG et le microservice d'outils Rust sont orchestrés via **Docker Compose** (`docker compose up -d`). L'utilisation de Docker Compose assure la persistance des volumes, la configuration des variables d'environnement, la sécurité de la sandbox et la résolution réseau vers la machine hôte.
 
 > [!IMPORTANT]
 > Pour que le conteneur n8n puisse communiquer avec Bionic tournant sur l'hôte, la directive `extra_hosts` ou la variable `host.docker.internal` est indispensable.
@@ -86,7 +88,7 @@ Le conteneur n8n peut être démarré et orchestré simplement via **Docker Comp
   ```
 * **Consultation des logs en temps réel** :
   ```bash
-  docker compose logs -f n8n
+  docker compose logs -f n8n searxng sandbox-api
   ```
 * **Arrêt du conteneur** :
   ```bash
@@ -96,6 +98,55 @@ Le conteneur n8n peut être démarré et orchestré simplement via **Docker Comp
 #### Configuration de référence (`docker-compose.yml`)
 ```yaml
 services:
+  rust-tools:
+    build: .
+    container_name: bionic-agent-tools
+    ports:
+      - "3000:3000"
+    networks:
+      - agent-network
+
+  sandbox-certs:
+    image: ghcr.io/n8n-io/n8n-sandbox-service-api:1.3.4
+    container_name: n8n-sandbox-certs
+    volumes:
+      - sandbox_tls:/tls
+    networks:
+      - agent-network
+
+  sandbox-api:
+    image: ghcr.io/n8n-io/n8n-sandbox-service-api:1.3.4
+    container_name: n8n-sandbox-api
+    ports:
+      - "5680:8080"
+    volumes:
+      - sandbox_tls:/tls:ro
+    networks:
+      - agent-network
+
+  sandbox-runner-1:
+    image: ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:1.3.4
+    container_name: n8n-sandbox-runner
+    privileged: true
+    volumes:
+      - sandbox_tls:/tls:ro
+    networks:
+      - agent-network
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "8088:8080"
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8088/
+      - SEARXNG_SECRET=searxng-bionic-agent-secret-token
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    networks:
+      - agent-network
+
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
     container_name: n8n-agents
@@ -110,14 +161,23 @@ services:
       - GENERIC_TIMEZONE=Europe/Paris
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
       - N8N_AI_ENABLED=true
+      - N8N_INSTANCE_AI_SANDBOX_ENABLED=true
+      - N8N_INSTANCE_AI_SANDBOX_PROVIDER=n8n-sandbox
+      - N8N_INSTANCE_AI_SANDBOX_API_URL=http://sandbox-api:8080
+      - N8N_SANDBOX_SERVICE_URL=http://sandbox-api:8080
+      - SEARXNG_URL=http://searxng:8080
     volumes:
       - n8n_data:/home/node/.n8n
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - agent-network
 
 volumes:
   n8n_data:
     name: n8n_data
+  sandbox_tls:
+    name: sandbox_tls
 ```
 
 ### 4.3 Paramètres de Connexion au Modèle Bionic dans n8n
