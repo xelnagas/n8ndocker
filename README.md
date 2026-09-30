@@ -46,21 +46,15 @@ graph TD
 ### 1. Prérequis
 * Docker & Docker Compose installés et démarrés.
 * Bionic / LM Studio actif sur la machine hôte exposant l'API OpenAI locale sur le port `1234` (modèle `qwen/qwen3.8-27b` ou `qwen/qwen3.5-9b`).
-* (Optionnel pour développement local) Chaîne de compilation Rust 1.80+ (`cargo`, `rustc`).
 
-### 2. Configuration d'environnement
-Copiez le fichier d'exemple et ajustez les variables si nécessaire :
+### 2. Lancer l'infrastructure complète directement (Zéro configuration requise)
+Le dépôt est immédiatement opérationnel avec ses configurations et variables par défaut :
 ```bash
-cp .env.example .env
+docker compose up -d
 ```
+> *(Optionnel)* Si vous désirez surcharger des paramètres pour votre machine, vous pouvez modifier `.env` ou créer un fichier `.env.local` sans impacter Git.
 
-### 3. Lancer l'infrastructure complète via Docker Compose
-Cette commande démarre le conteneur n8n, la sandbox d'exécution ainsi que le microservice Rust compilé :
-```bash
-docker compose up -d --build
-```
-
-### 4. Vérifier l'état des services
+### 3. Vérifier l'état des services
 ```bash
 docker compose ps
 ```

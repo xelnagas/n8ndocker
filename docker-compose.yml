@@ -1,8 +1,11 @@
+name: n8n
+
 services:
   rust-tools:
     build:
       context: .
       dockerfile: Dockerfile
+    image: n8n-rust-tools:latest
     container_name: bionic-agent-tools
     restart: unless-stopped
     ports:

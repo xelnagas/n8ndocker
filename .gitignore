@@ -1,8 +1,7 @@
 # Environnements et secrets
-.env
-*.env
-*.env.*
-!.env.example
+.env.local
+*.env.local
+*.local.env
 
 # Système d'exploitation
 .DS_Store
